@@ -30,6 +30,38 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+function auth(req, res, next){
+  console.log(req.headers);
+
+  var authHeader = req.headers.authorization;
+ 
+  if(!authHeader){
+    var err = new Error('You are not autheticated!');
+    res.setHeader('WWW-Authenticate', 'Basic');
+    err.status = 401; //unauthorized
+    return next(err);
+  }
+  //splitting the header will return an array the first elemnet is authentication type
+  //and the second is base64 encrypted existed
+  //then we split the buffered to give us the username and password 'username:password' 
+  var auth = new Buffer(authHeader.split(' ')[1], 'base64').toString().split(':');
+  var username = auth[0];
+  var password = auth[1];
+
+  if(username === 'admin' && password === 'password'){
+    next();
+    //that mean move to next middleware
+  }
+  else{
+    var err = new Error('You are not autheticated!');
+    res.setHeader('WWW-Authenticate', 'Basic');
+    err.status = 401; //unauthorized
+  }
+}
+
+app.use(auth); //putting auth here means will check auth before using those next middlewares
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
