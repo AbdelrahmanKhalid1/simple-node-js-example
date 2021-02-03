@@ -11,7 +11,6 @@ var promoRouter = require('./routes/promoRouter');
 var leaderRouter = require('./routes/leaderRouter');
 
 const mongoose = require('mongoose')
-const Dishes = require('./models/dishes')
 const url = 'mongodb://localhost:27017/conFusion'
 const connect = mongoose.connect(url)
 
@@ -29,34 +28,49 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(cookieParser('12345-67890-09876-54321')); //give secret key
 
 function auth(req, res, next){
-  console.log(req.headers);
+  console.log(req.signedCookies);
 
-  var authHeader = req.headers.authorization;
+  if(!req.signedCookies.user){ //Not included that means the user is not authenticated (logged in)
+    var authHeader = req.headers.authorization;
  
-  if(!authHeader){
-    var err = new Error('You are not autheticated!');
-    res.setHeader('WWW-Authenticate', 'Basic');
-    err.status = 401; //unauthorized
-    return next(err);
-  }
-  //splitting the header will return an array the first elemnet is authentication type
-  //and the second is base64 encrypted existed
-  //then we split the buffered to give us the username and password 'username:password' 
-  var auth = new Buffer(authHeader.split(' ')[1], 'base64').toString().split(':');
-  var username = auth[0];
-  var password = auth[1];
+    if(!authHeader){
+      var err = new Error('You are not autheticated!');
+      res.setHeader('WWW-Authenticate', 'Basic');
+      err.status = 401; //unauthorized
+      return next(err);
+    }
 
-  if(username === 'admin' && password === 'password'){
-    next();
-    //that mean move to next middleware
+    //splitting the header will return an array the first elemnet is authentication type
+    //and the second is base64 encrypted existed
+    //then we split the buffered to give us the username and password 'username:password' 
+    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+    var username = auth[0];
+    var password = auth[1];
+
+    if(username === 'admin' && password === 'password'){
+      res.cookie('user', 'admin', {signed: true}); //takes string value name, user field, cookie options ==> set cookie name with options
+      next(); //that mean move to next middleware
+    }
+    else{
+      var err = new Error('You are not autheticated!');
+      res.setHeader('WWW-Authenticate', 'Basic');
+      err.status = 401; //unauthorized
+      return next(err);
+    }
   }
   else{
-    var err = new Error('You are not autheticated!');
-    res.setHeader('WWW-Authenticate', 'Basic');
-    err.status = 401; //unauthorized
+    if(req.signedCookies.user === 'admin'){
+      next();
+    }
+    else{
+      var err = new Error('You are not autheticated!');
+
+      err.status = 401; //unauthorized
+      return next(err);
+    }
   }
 }
 
