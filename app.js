@@ -40,45 +40,24 @@ app.use(session({
   store: new FileStore()
 }));
 
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
+
 function auth(req, res, next){
   console.log(req.session);
 
   if(!req.session.user){ //Not included that means the user is not authenticated (logged in)
-    var authHeader = req.headers.authorization;
- 
-    if(!authHeader){
       var err = new Error('You are not autheticated!');
       res.setHeader('WWW-Authenticate', 'Basic');
       err.status = 401; //unauthorized
       return next(err);
-    }
-
-    //splitting the header will return an array the first elemnet is authentication type
-    //and the second is base64 encrypted existed
-    //then we split the buffered to give us the username and password 'username:password' 
-    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-    var username = auth[0];
-    var password = auth[1];
-
-    if(username === 'admin' && password === 'password'){
-      req.session.user = 'admin';
-      //res.cookie('user', 'admin', {signed: true}); //takes string value name, user field, cookie options ==> set cookie name with options
-      next(); //that mean move to next middleware
-    }
-    else{
-      var err = new Error('You are not autheticated!');
-      res.setHeader('WWW-Authenticate', 'Basic');
-      err.status = 401; //unauthorized
-      return next(err);
-    }
   }
   else{
-    if(req.session.user === 'admin'){
+    if(req.session.user === 'authenticated'){ //initialized in user router
       next();
     }
     else{
       var err = new Error('You are not autheticated!');
-
       err.status = 401; //unauthorized
       return next(err);
     }
@@ -89,8 +68,6 @@ app.use(auth); //putting auth here means will check auth before using those next
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
 app.use('/dishes', dishRouter);
 app.use('/promotions', promoRouter);
 app.use('/leaders', leaderRouter);
